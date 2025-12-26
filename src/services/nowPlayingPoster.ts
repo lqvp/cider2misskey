@@ -39,8 +39,12 @@ type PlaceholderMeta = {
 type PosterState = {
   lastTrackId: string;
   lastTrack?: NowPlayingInfo;
+  lastTrackSeenId: string;
+  lastTrackSeenAt: number;
   lastPostedTrackId: string;
   lastPostAt: number;
+  lastPostAttemptTrackId: string;
+  lastPostAttemptAt: number;
   lastPostResult?: string;
   lastError?: string;
   isPosting: boolean;
@@ -54,6 +58,8 @@ const levelWeight: LevelWeight = {
   info: 20,
   error: 30,
 };
+
+const INSTANT_GUARD_MS = 500;
 
 function shouldLog(cfg: NowPlayingConfig, level: LogLevel) {
   return levelWeight[level] >= levelWeight[cfg.logLevel];
@@ -238,8 +244,12 @@ class NowPlayingPoster {
     this.state = reactive<PosterState>({
       lastTrackId: "",
       lastTrack: undefined,
+      lastTrackSeenId: "",
+      lastTrackSeenAt: 0,
       lastPostedTrackId: "",
       lastPostAt: 0,
+      lastPostAttemptTrackId: "",
+      lastPostAttemptAt: 0,
       lastPostResult: "",
       lastError: "",
       isPosting: false,
@@ -274,8 +284,7 @@ class NowPlayingPoster {
     try {
       const info = await fetchNowPlaying(this.#cfgRef.value);
       if (!info) return;
-      this.state.lastTrack = info;
-      this.state.lastTrackId = buildTrackId(info);
+      this.recordTrack(info);
       if (this.#cfgRef.value.autopost) {
         await this.maybePost(info);
       }
@@ -292,8 +301,7 @@ class NowPlayingPoster {
   onMediaItemChange(mkArg?: any) {
     const info = fetchViaMusicKit(mkArg);
     if (!info) return;
-    this.state.lastTrack = info;
-    this.state.lastTrackId = buildTrackId(info);
+    this.recordTrack(info);
     if (this.#cfgRef.value.autopost) {
       this.maybePost(info);
     }
@@ -303,8 +311,7 @@ class NowPlayingPoster {
     if (!this.state.lastTrack) {
       const info = fetchViaMusicKit();
       if (info) {
-        this.state.lastTrack = info;
-        this.state.lastTrackId = buildTrackId(info);
+        this.recordTrack(info);
       } else {
         await this.poll();
       }
@@ -348,12 +355,31 @@ class NowPlayingPoster {
   private async maybePost(info: NowPlayingInfo, force = false) {
     const cfg = this.#cfgRef.value;
     const trackId = buildTrackId(info);
+    const now = Date.now();
     if (!cfg.instanceUrl || !cfg.token) {
       this.log("debug", "Instance URL or token not set; skip post");
       return;
     }
     if (!force) {
       if (!isPlaying(info)) return;
+      if (trackId && trackId === this.state.lastPostAttemptTrackId) {
+        if (this.state.isPosting) return;
+        if (
+          cfg.triggerMode === "instant" &&
+          now - this.state.lastPostAttemptAt < INSTANT_GUARD_MS
+        ) {
+          return;
+        }
+      }
+      if (cfg.triggerMode === "instant") {
+        if (
+          trackId &&
+          trackId === this.state.lastTrackSeenId &&
+          now - this.state.lastTrackSeenAt < INSTANT_GUARD_MS
+        ) {
+          return;
+        }
+      }
       if (!this.meetsTrigger(info)) return;
       if (this.isDuplicate(trackId)) return;
     }
@@ -362,9 +388,21 @@ class NowPlayingPoster {
       this.log("error", "Rendered template is empty; skip post");
       return;
     }
+    this.state.lastPostAttemptTrackId = trackId;
+    this.state.lastPostAttemptAt = now;
     await this.postWithRetry(text, cfg.retries ?? 0);
     this.state.lastPostedTrackId = trackId;
     this.state.lastPostAt = Date.now();
+  }
+
+  private recordTrack(info: NowPlayingInfo) {
+    const trackId = buildTrackId(info);
+    this.state.lastTrack = info;
+    this.state.lastTrackId = trackId;
+    if (trackId && trackId !== this.state.lastTrackSeenId) {
+      this.state.lastTrackSeenId = trackId;
+      this.state.lastTrackSeenAt = Date.now();
+    }
   }
 
   private async postWithRetry(text: string, retries: number) {
