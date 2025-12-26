@@ -9,7 +9,7 @@ export default {
     identifier: 'sh.cider.misskey-nowplaying',
     name: 'Misskey NowPlaying',
     description: 'Auto-post now playing from Cider to Misskey',
-    version: '0.1.0',
+    version: '1.0.0',
     author: 'cider2misskey',
     repo: 'https://github.com/ciderapp/plugin-template',
     entry: {
