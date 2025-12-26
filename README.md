@@ -1,8 +1,8 @@
-# Cider + Vue 3 + TypeScript + Vite
+# Misskey NowPlaying for Cider 2
 
 **(Requires Cider 2.5 or later)**
 
-This is a template/boilerplate for creating Cider plugins using Vue 3, TypeScript, and Vite.
+Automatically (or manually) post your Cider Now Playing track to Misskey.
 
 ## Starting a new plugin project
 Using **Node**
@@ -31,3 +31,13 @@ Run `npm run prepare-marketplace`
 Running this script will create a ZIP file in the `publish` directory that is ready to be uploaded to the Cider Marketplace.
 
 To configure this plugin edit `src/plugin.config.ts`
+
+## How to use (dev flow)
+1) `pnpm dev` (or `npm run dev`) to expose Vite dev server.  
+2) In Cider → Plugins → Enable Vite → load this plugin.  
+3) Open menu item **“Misskey NowPlaying (settings)”** to configure:
+   - Instance URL, token (`write:notes`), visibility/localOnly
+   - Autopost toggle and trigger (instant / seconds / percent / manual)
+   - Template text (placeholders like `{title}`, `{artist}`, `{album}`, `{elapsed_s}`, `{duration_s}`, etc.)
+4) Optional: enable the menu entry “Post current track to Misskey” for one-click manual posting.  
+5) Check logs and preview on the plugin page; console logs also appear in Vite terminal / Cider DevTools.

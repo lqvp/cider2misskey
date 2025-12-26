@@ -1,7 +1,7 @@
-identifier: sh.cider.plugin-template-wip
-name: Example Plugin
-description: Shows off some of the working plugin API draft
-author: ciderapp
+identifier: sh.cider.misskey-nowplaying
+name: Misskey NowPlaying
+description: Auto-post now playing from Cider to Misskey
+author: cider2misskey
 repo: https://github.com/ciderapp/plugin-template-wip
 entry:
   "plugin.js":

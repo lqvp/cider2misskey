@@ -1,6 +1,6 @@
 import { defineCustomElement } from "vue";
 import type { App } from "vue";
-import { createPinia } from "pinia";
+import { createPinia, setActivePinia } from "pinia";
 import {
   definePluginContext,
   addMainMenuEntry,
@@ -8,8 +8,8 @@ import {
   addImmersiveMenuEntry,
   addImmersiveLayout,
   addCustomButton,
-  createModal,
   useCiderAudio,
+  useMusicKit,
 } from "@ciderapp/pluginkit";
 import HelloWorld from "./components/HelloWorld.vue";
 import MySettings from "./components/MySettings.vue";
@@ -19,11 +19,16 @@ import CustomPage from "./pages/CustomPage.vue";
 import PluginConfig from "./plugin.config";
 import ComponentBasedModal from "./components/ComponentBasedModal.vue";
 import ComponentsShowcase from "./pages/ComponentsShowcase.vue";
+import NowPlayingPage from "./pages/NowPlayingPage.vue";
+import { initNowPlayingPoster, useNowPlayingPoster } from "./services/nowPlayingPoster";
+import { useLogStore } from "./stores/logs";
+import { cfg } from "./config";
 
 /**
  * Initializing a Vue app instance so we can use things like Pinia.
  */
 const pinia = createPinia();
+setActivePinia(pinia);
 
 /**
  * Function that configures the app instances of the custom elements
@@ -55,6 +60,10 @@ export const CustomElements = {
     shadowRoot: false,
     configureApp,
   }),
+  "page-nowplaying": defineCustomElement(NowPlayingPage, {
+    shadowRoot: false,
+    configureApp,
+  }),
   "immersive-layout": defineCustomElement(CustomImmersiveLayout, {
     shadowRoot: false,
     configureApp,
@@ -68,7 +77,7 @@ export const CustomElements = {
 /**
  * Defining the plugin context
  */
-const { plugin, setupConfig, customElementName, goToPage, useCPlugin } =
+const { plugin, customElementName, goToPage, useCPlugin } =
   definePluginContext({
     ...PluginConfig,
     CustomElements,
@@ -102,89 +111,74 @@ const { plugin, setupConfig, customElementName, goToPage, useCPlugin } =
         type: "normal",
       });
 
-      // Here we add a new entry to the main menu
+      const logStore = useLogStore();
+      logStore.log("info", "Misskey NowPlaying plugin booting");
+
+      const poster = initNowPlayingPoster(cfg);
+      const mk = useMusicKit();
+      mk.addEventListener("mediaItemStateDidChange", () => poster?.onMediaItemChange(mk));
+      mk.addEventListener("playbackStateDidChange", () => poster?.onMediaItemChange(mk));
+
       addMainMenuEntry({
-        label: "Go to my page",
+        label: "Misskey NowPlaying (settings)",
         onClick() {
           goToPage({
-            name: "page-helloworld",
+            name: "page-nowplaying",
           });
         },
       });
 
-      addMainMenuEntry({
-        label: "Modal example",
-        onClick() {
-          const { closeDialog, openDialog, dialogElement } = createModal({
-            escClose: true,
-          });
-          const content = document.createElement(
-            customElementName("modal-example")
-          );
-          // @ts-ignore
-          content._props.closeFn = closeDialog;
-          dialogElement.appendChild(content);
-          openDialog();
-        },
-      });
+      if (cfg.value.enableManualMenu) {
+        addMainMenuEntry({
+          label: "Post current track to Misskey",
+          onClick: () => {
+            poster?.manualPost(true);
+          },
+        });
+      }
 
       addImmersiveMenuEntry({
-        label: "Go to my page",
+        label: "Misskey NowPlaying",
         onClick() {
           goToPage({
-            name: "page-helloworld",
+            name: "page-nowplaying",
           });
         },
       });
 
-      addMainMenuEntry({
-        label: "Go to Components Showcase",
-        onClick() {
-          goToPage({
-            name: "page-components",
-          });
-        },
-      });
-
-      // Here we add a custom button to the top right of the chrome
       addCustomButton({
-        element: "♥",
+        element: "♪",
         location: "chrome-top/right",
-        title: "Click me!",
+        title: "Misskey NowPlaying",
         menuElement: customElementName("hello-world"),
+        onClick() {
+          goToPage({ name: "page-nowplaying" });
+        },
       });
 
       const audio = useCiderAudio();
       audio.subscribe("ready", () => {
-        console.log("CiderAudio is ready!", audio.context);
+        logStore.log("debug", "CiderAudio ready");
       });
 
       addMediaItemContextMenuEntry({
-        label: "Send to plugin",
+        label: "Post this track to Misskey",
         onClick(item) {
-          console.log("Got this item", item);
+          const npPoster = useNowPlayingPoster();
+          // @ts-ignore
+          npPoster?.manualPost(true);
+          logStore.log("info", "Manual post requested from context menu", {
+            item,
+          });
         },
       });
     },
   });
 
 /**
- * Some boilerplate code for our own configuration
- */
-export const cfg = setupConfig({
-  favoriteColor: <"red" | "green" | "blue">"blue",
-  count: <number>0,
-  booleanOption: <boolean>false,
-});
-
-export function useConfig() {
-  return cfg.value;
-}
-
-/**
  * Exporting the plugin and functions
  */
-export { setupConfig, customElementName, goToPage, useCPlugin };
+export { customElementName, goToPage, useCPlugin };
 
 /**
  * Exporting the plugin, Cider will use this to load the plugin
