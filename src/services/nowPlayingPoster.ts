@@ -13,6 +13,8 @@ export type NowPlayingConfig = {
   visibility: Visibility;
   localOnly: boolean;
   template: string;
+  cwEnabled: boolean;
+  cwTemplate: string;
   autopost: boolean;
   triggerMode: TriggerMode;
   triggerSeconds: number;
@@ -153,6 +155,7 @@ function renderTemplate(tpl: string, info: NowPlayingInfo) {
 async function postToMisskey(
   cfg: NowPlayingConfig,
   text: string,
+  cw: string | null,
   log: (level: LogLevel, msg: string, detail?: unknown) => void
 ) {
   const endpoint = `${cfg.instanceUrl.replace(/\/+$/, "")}/api/notes/create`;
@@ -161,6 +164,7 @@ async function postToMisskey(
     visibility: cfg.visibility,
     localOnly: cfg.localOnly,
     text,
+    ...(cw ? { cw } : {}),
   };
   const res = await fetch(endpoint, {
     method: "POST",
@@ -384,13 +388,20 @@ class NowPlayingPoster {
       if (this.isDuplicate(trackId)) return;
     }
     const text = renderTemplate(cfg.template, info).trim();
+    const cwText = cfg.cwEnabled
+      ? renderTemplate(cfg.cwTemplate ?? "", info).trim()
+      : "";
+    if (cfg.cwEnabled && !cwText) {
+      this.log("error", "Rendered CW template is empty; skip post");
+      return;
+    }
     if (!text) {
       this.log("error", "Rendered template is empty; skip post");
       return;
     }
     this.state.lastPostAttemptTrackId = trackId;
     this.state.lastPostAttemptAt = now;
-    await this.postWithRetry(text, cfg.retries ?? 0);
+    await this.postWithRetry(text, cwText || null, cfg.retries ?? 0);
     this.state.lastPostedTrackId = trackId;
     this.state.lastPostAt = Date.now();
   }
@@ -405,14 +416,14 @@ class NowPlayingPoster {
     }
   }
 
-  private async postWithRetry(text: string, retries: number) {
+  private async postWithRetry(text: string, cw: string | null, retries: number) {
     const cfg = this.#cfgRef.value;
     let attempt = 0;
     const backoff = Math.max(cfg.retryBackoffSec, 1) * 1000;
     while (true) {
       try {
         this.state.isPosting = true;
-        const res = await postToMisskey(cfg, text, (l, m, d) =>
+        const res = await postToMisskey(cfg, text, cw, (l, m, d) =>
           this.log(l, m, d)
         );
         this.state.lastPostResult = "ok";

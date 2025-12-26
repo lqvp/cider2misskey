@@ -59,7 +59,13 @@ function manualPost() {
       <header>
         <h3>テンプレート</h3>
       </header>
-      <TemplateEditor v-model="cfg.template" :sampleInfo="sampleInfo" />
+      <TemplateEditor v-model="cfg.template" :sampleInfo="sampleInfo" label="Post text template" />
+      <TemplateEditor
+        v-if="cfg.cwEnabled"
+        v-model="cfg.cwTemplate"
+        :sampleInfo="sampleInfo"
+        label="CW (visible) template"
+      />
     </section>
 
     <section class="card">
@@ -87,6 +93,10 @@ function manualPost() {
         <label class="checkbox">
           <input type="checkbox" v-model="cfg.localOnly" />
           localOnly
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" v-model="cfg.cwEnabled" />
+          Use CW (content warning)
         </label>
         <label>
           RPC Base URL

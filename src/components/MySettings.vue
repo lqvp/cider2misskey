@@ -60,6 +60,11 @@ const sampleInfo = computed(() => poster?.state.lastTrack);
           <span>Autopost enabled</span>
         </label>
 
+        <label class="switch">
+          <input type="checkbox" v-model="cfg.cwEnabled" />
+          <span>Content warning (CW)</span>
+        </label>
+
         <label class="input-label">
           Trigger mode
           <select class="settings-input" v-model="cfg.triggerMode">
@@ -87,7 +92,16 @@ const sampleInfo = computed(() => poster?.state.lastTrack);
     </section>
 
     <section class="settings-group">
-      <TemplateEditor v-model="cfg.template" :sampleInfo="sampleInfo" />
+      <TemplateEditor v-model="cfg.template" :sampleInfo="sampleInfo" label="Post text template" />
+      <TemplateEditor
+        v-if="cfg.cwEnabled"
+        v-model="cfg.cwTemplate"
+        :sampleInfo="sampleInfo"
+        label="CW (visible) template"
+      />
+      <p v-if="cfg.cwEnabled" class="hint">
+        CW が表示側、本文は隠される側として投稿されます。
+      </p>
     </section>
 
     <details class="settings-group">

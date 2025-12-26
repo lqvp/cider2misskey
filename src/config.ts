@@ -40,6 +40,8 @@ export const defaultConfig: NowPlayingConfig = {
   visibility: "public",
   localOnly: false,
   template: "#NowPlaying 🎧 {title} — {artist} | {album}",
+  cwEnabled: false,
+  cwTemplate: "Now Playing",
   autopost: true,
   triggerMode: "percent",
   triggerSeconds: 15,
@@ -61,4 +63,3 @@ export const cfg = setupConfig(defaultConfig);
 export function useConfig() {
   return cfg.value;
 }
-

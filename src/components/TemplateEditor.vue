@@ -2,10 +2,18 @@
 import { computed, nextTick, ref } from "vue";
 import { getPlaceholders, renderTemplatePreview } from "../services/nowPlayingPoster";
 
-const props = defineProps<{
-  modelValue: string;
-  sampleInfo?: any;
-}>();
+const props = withDefaults(
+  defineProps<{
+    modelValue: string;
+    sampleInfo?: any;
+    label?: string;
+    previewLabel?: string;
+  }>(),
+  {
+    label: "Template",
+    previewLabel: "Preview",
+  }
+);
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
@@ -102,7 +110,7 @@ function onPlaceholderClick(key: string, e: MouseEvent) {
 <template>
   <div class="template-editor">
     <label class="input-label">
-      Template
+      {{ props.label }}
       <textarea
         ref="textareaRef"
         class="settings-textarea"
@@ -113,7 +121,7 @@ function onPlaceholderClick(key: string, e: MouseEvent) {
     </label>
 
     <div class="template-preview">
-      <div class="template-preview-label">Preview</div>
+      <div class="template-preview-label">{{ props.previewLabel }}</div>
       <pre class="template-preview-body">{{ preview }}</pre>
       <div class="template-preview-hint">改行はそのまま投稿されます。</div>
     </div>
