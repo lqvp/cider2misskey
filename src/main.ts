@@ -11,7 +11,6 @@ import {
   useCiderAudio,
   useMusicKit,
 } from "@ciderapp/pluginkit";
-import HelloWorld from "./components/HelloWorld.vue";
 import MySettings from "./components/MySettings.vue";
 import ModalExample from "./components/ModalExample.vue";
 import CustomImmersiveLayout from "./components/CustomImmersiveLayout.vue";
@@ -41,13 +40,6 @@ function configureApp(app: App) {
  * Custom Elements that will be registered in the app
  */
 export const CustomElements = {
-  "hello-world": defineCustomElement(HelloWorld, {
-    /**
-     * Disabling the shadow root DOM so that we can inject styles from the DOM
-     */
-    shadowRoot: false,
-    configureApp,
-  }),
   "modal-example": defineCustomElement(ModalExample, {
     shadowRoot: false,
     configureApp,
@@ -150,9 +142,9 @@ const { plugin, customElementName, goToPage, useCPlugin } =
         element: "♪",
         location: "chrome-top/right",
         title: "Misskey NowPlaying",
-        menuElement: customElementName("hello-world"),
         onClick() {
-          goToPage({ name: "page-nowplaying" });
+          poster?.manualPost(true);
+          logStore.log("info", "Manual post requested from custom button");
         },
       });
 
