@@ -14,7 +14,6 @@ import {
 import MySettings from "./components/MySettings.vue";
 import ModalExample from "./components/ModalExample.vue";
 import CustomImmersiveLayout from "./components/CustomImmersiveLayout.vue";
-import CustomPage from "./pages/CustomPage.vue";
 import PluginConfig from "./plugin.config";
 import ComponentBasedModal from "./components/ComponentBasedModal.vue";
 import ComponentsShowcase from "./pages/ComponentsShowcase.vue";
@@ -41,10 +40,6 @@ function configureApp(app: App) {
  */
 export const CustomElements = {
   "modal-example": defineCustomElement(ModalExample, {
-    shadowRoot: false,
-    configureApp,
-  }),
-  "page-helloworld": defineCustomElement(CustomPage, {
     shadowRoot: false,
     configureApp,
   }),
