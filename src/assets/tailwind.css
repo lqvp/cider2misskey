@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@layer components {
+  .c-btn {
+    @apply inline-flex items-center justify-center rounded-lg bg-[var(--color-primary,#fb2a5d)] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90;
+  }
+
+
+  .c-input {
+    @apply w-full rounded-lg border border-[var(--color-border,rgba(255,255,255,0.14))] bg-[var(--color-background-primary,rgba(0,0,0,0.2))] px-3 py-2 text-[var(--color-text-primary,#fff)] transition focus:border-[var(--color-primary,#3b82f6)] focus:outline-none;
+  }
+
+  .c-select {
+    @apply w-full rounded-lg border border-[var(--color-border,rgba(255,255,255,0.14))] bg-[var(--color-background-primary,rgba(0,0,0,0.2))] px-3 py-2 text-[var(--color-text-primary,#fff)] transition focus:border-[var(--color-primary,#3b82f6)] focus:outline-none;
+  }
+
+  .c-textarea {
+    @apply w-full rounded-lg border border-[var(--color-border,rgba(255,255,255,0.14))] bg-[var(--color-background-primary,rgba(0,0,0,0.2))] px-3 py-2 text-[var(--color-text-primary,#fff)] transition focus:border-[var(--color-primary,#3b82f6)] focus:outline-none font-mono leading-snug;
+  }
+
+  .c-checkbox {
+    @apply h-4 w-4 accent-[var(--color-primary,#fb2a5d)];
+  }
+
+  .checkbox-label {
+    @apply flex items-center gap-2.5 text-[var(--color-text-primary,#fff)];
+  }
+}

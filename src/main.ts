@@ -1,22 +1,17 @@
 import { defineCustomElement } from "vue";
 import type { App } from "vue";
 import { createPinia, setActivePinia } from "pinia";
+import "./assets/tailwind.css";
 import {
   definePluginContext,
   addMainMenuEntry,
   addMediaItemContextMenuEntry,
   addImmersiveMenuEntry,
-  addImmersiveLayout,
   addCustomButton,
   useCiderAudio,
   useMusicKit,
 } from "@ciderapp/pluginkit";
-import MySettings from "./components/MySettings.vue";
-import ModalExample from "./components/ModalExample.vue";
-import CustomImmersiveLayout from "./components/CustomImmersiveLayout.vue";
 import PluginConfig from "./plugin.config";
-import ComponentBasedModal from "./components/ComponentBasedModal.vue";
-import ComponentsShowcase from "./pages/ComponentsShowcase.vue";
 import NowPlayingPage from "./pages/NowPlayingPage.vue";
 import { initNowPlayingPoster, useNowPlayingPoster } from "./services/nowPlayingPoster";
 import { useLogStore } from "./stores/logs";
@@ -39,23 +34,7 @@ function configureApp(app: App) {
  * Custom Elements that will be registered in the app
  */
 export const CustomElements = {
-  "modal-example": defineCustomElement(ModalExample, {
-    shadowRoot: false,
-    configureApp,
-  }),
-  "page-components": defineCustomElement(ComponentsShowcase, {
-    shadowRoot: false,
-    configureApp,
-  }),
   "page-nowplaying": defineCustomElement(NowPlayingPage, {
-    shadowRoot: false,
-    configureApp,
-  }),
-  "immersive-layout": defineCustomElement(CustomImmersiveLayout, {
-    shadowRoot: false,
-    configureApp,
-  }),
-  "component-based-modal": defineCustomElement(ComponentBasedModal, {
     shadowRoot: false,
     configureApp,
   }),
@@ -80,7 +59,7 @@ const { plugin, customElementName, goToPage, useCPlugin } =
       // Explicitly defining our settings element here to avoid issues with module load order
       customElements.define(
         customElementName("settings"),
-        defineCustomElement(MySettings, {
+        defineCustomElement(NowPlayingPage, {
           shadowRoot: false,
           configureApp,
         })
@@ -90,13 +69,6 @@ const { plugin, customElementName, goToPage, useCPlugin } =
        * Defining our custom settings element
        */
       this.SettingsElement = customElementName("settings");
-
-      addImmersiveLayout({
-        name: "My layout",
-        identifier: "my-layout",
-        component: customElementName("immersive-layout"),
-        type: "normal",
-      });
 
       const logStore = useLogStore();
       logStore.log("info", "Misskey NowPlaying plugin booting");

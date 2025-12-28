@@ -108,205 +108,70 @@ function onPlaceholderClick(key: string, e: MouseEvent) {
 </script>
 
 <template>
-  <div class="template-editor">
-    <label class="input-label">
+  <div class="flex flex-col gap-3">
+    <label class="grid gap-2 text-[var(--color-text-secondary,#d4d4d8)] font-semibold">
       {{ props.label }}
       <textarea
         ref="textareaRef"
-        class="settings-textarea"
+        class="c-textarea"
         :value="modelValue"
         rows="5"
         @input="(e) => updateValue((e.target as HTMLTextAreaElement).value)"
       />
     </label>
 
-    <div class="template-preview">
-      <div class="template-preview-label">{{ props.previewLabel }}</div>
-      <pre class="template-preview-body">{{ preview }}</pre>
-      <div class="template-preview-hint">改行はそのまま投稿されます。</div>
+    <div
+      class="rounded-xl border border-[var(--color-border,rgba(255,255,255,0.1))] bg-[var(--color-background-secondary,rgba(255,255,255,0.06))] p-3"
+    >
+      <div class="mb-1.5 text-sm font-semibold text-[var(--color-text-secondary,#d4d4d8)]">
+        {{ props.previewLabel }}
+      </div>
+      <pre class="m-0 whitespace-pre-wrap break-words rounded-lg bg-black/15 p-2.5 font-mono">{{ preview }}</pre>
+      <div class="mt-1.5 text-xs text-[var(--color-text-tertiary,#a1a1aa)]">
+        改行はそのまま投稿されます。
+      </div>
     </div>
 
-    <details class="placeholder-panel" open>
-      <summary>Placeholders</summary>
-      <div class="placeholder-controls">
-        <input class="settings-input" v-model="query" placeholder="Search…" />
-        <div class="placeholder-hint">
+    <details
+      class="rounded-xl border border-[var(--color-border,rgba(255,255,255,0.1))] bg-[var(--color-background-secondary,rgba(255,255,255,0.06))] p-3"
+      open
+    >
+      <summary class="cursor-pointer font-bold text-[var(--color-text-primary,#fff)]">
+        Placeholders
+      </summary>
+      <div class="mt-2 grid gap-2">
+        <input class="c-input" v-model="query" placeholder="Search…" />
+        <div class="text-xs text-[var(--color-text-tertiary,#a1a1aa)]">
           クリックで挿入 / Shift+クリックでコピー
         </div>
       </div>
 
-      <div class="placeholder-copied" v-if="copiedKey">
+      <div class="mt-2 text-xs text-[var(--color-text-secondary,#d4d4d8)]" v-if="copiedKey">
         Copied: <code>{{ copiedKey }}</code>
       </div>
 
-      <div v-for="[group, items] in groupedPlaceholders" :key="group" class="placeholder-group">
-        <div class="placeholder-group-title">{{ group }}</div>
-        <div class="placeholder-list">
-          <button
-            v-for="p in items"
-            :key="p.key"
-            type="button"
-            class="placeholder-item"
-            @click="(e) => onPlaceholderClick(p.key, e as MouseEvent)"
-            :title="p.description"
-          >
-            <code class="placeholder-key">{{ '{' + p.key + '}' }}</code>
-            <span class="placeholder-desc">{{ p.description }}</span>
-          </button>
+      <div class="mt-3 max-h-150 overflow-y-auto pr-1">
+        <div v-for="[group, items] in groupedPlaceholders" :key="group" class="mt-3">
+          <div class="mb-2 text-sm font-bold text-[var(--color-text-secondary,#d4d4d8)]">
+            {{ group }}
+          </div>
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
+            <button
+              v-for="p in items"
+              :key="p.key"
+              type="button"
+              class="grid gap-1 rounded-lg border border-white/10 bg-white/5 p-2 text-left transition hover:border-white/20 hover:bg-white/10"
+              @click="(e) => onPlaceholderClick(p.key, e as MouseEvent)"
+              :title="p.description"
+            >
+              <code class="font-bold">{{ '{' + p.key + '}' }}</code>
+              <span class="text-xs text-[var(--color-text-tertiary,#a1a1aa)]">
+                {{ p.description }}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </details>
   </div>
 </template>
-
-<style scoped>
-.template-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.input-label {
-  display: grid;
-  gap: 8px;
-  color: var(--color-text-secondary, #d4d4d8);
-  font-weight: 600;
-}
-
-.settings-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
-  border-radius: 10px;
-  background: var(--color-background-primary, rgba(0, 0, 0, 0.2));
-  color: var(--color-text-primary, #fff);
-  transition: all 0.2s ease;
-  resize: vertical;
-  font-family: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
-  line-height: 1.4;
-}
-
-.settings-textarea:focus {
-  outline: none;
-  border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
-}
-
-.template-preview {
-  background: var(--color-background-secondary, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-  border-radius: 12px;
-  padding: 12px;
-}
-
-.template-preview-label {
-  color: var(--color-text-secondary, #d4d4d8);
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.template-preview-body {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 10px;
-  padding: 10px;
-}
-
-.template-preview-hint {
-  margin-top: 6px;
-  color: var(--color-text-tertiary, #a1a1aa);
-  font-size: 12px;
-}
-
-.placeholder-panel {
-  background: var(--color-background-secondary, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-  border-radius: 12px;
-  padding: 12px;
-}
-
-.placeholder-panel summary {
-  cursor: pointer;
-  font-weight: 700;
-  color: var(--color-text-primary, #fff);
-}
-
-.placeholder-controls {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.settings-input {
-  width: 100%;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
-  border-radius: 10px;
-  background: var(--color-background-primary, rgba(0, 0, 0, 0.2));
-  color: var(--color-text-primary, #fff);
-}
-
-.settings-input:focus {
-  outline: none;
-  border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
-}
-
-.placeholder-hint {
-  color: var(--color-text-tertiary, #a1a1aa);
-  font-size: 12px;
-}
-
-.placeholder-copied {
-  margin-top: 8px;
-  color: var(--color-text-secondary, #d4d4d8);
-  font-size: 12px;
-}
-
-.placeholder-group {
-  margin-top: 12px;
-}
-
-.placeholder-group-title {
-  font-weight: 700;
-  color: var(--color-text-secondary, #d4d4d8);
-  margin-bottom: 8px;
-}
-
-.placeholder-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px;
-}
-
-.placeholder-item {
-  display: grid;
-  gap: 4px;
-  text-align: left;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.06);
-  cursor: pointer;
-}
-
-.placeholder-item:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.placeholder-key {
-  font-weight: 700;
-}
-
-.placeholder-desc {
-  color: var(--color-text-tertiary, #a1a1aa);
-  font-size: 12px;
-}
-</style>
