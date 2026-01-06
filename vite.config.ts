@@ -28,6 +28,7 @@ export default defineConfig({
       },
     }),
     {
+      name: 'emit-plugin-yml',
       apply: "build",
       async buildStart() {
         console.log('Building plugin...');

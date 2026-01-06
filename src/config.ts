@@ -39,7 +39,7 @@ export const defaultConfig: NowPlayingConfig = {
   token: "",
   visibility: "public",
   localOnly: false,
-  template: "#NowPlaying 🎧 {title} — {artist} | {album}",
+  template: "{title} - {artist} / {album}\n{url}\n#NowPlaying",
   cwEnabled: false,
   cwTemplate: "Now Playing",
   autopost: true,
