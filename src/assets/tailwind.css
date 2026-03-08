@@ -1,28 +1,65 @@
 @import "tailwindcss";
 
+/* Ciderテーマ変数のデフォルト値 */
+:root {
+  --color-primary: #fb2a5d;
+  --color-background-primary: rgba(0, 0, 0, 0.2);
+  --color-background-secondary: rgba(255, 255, 255, 0.05);
+  --color-text-primary: #fff;
+  --color-text-secondary: #d4d4d8;
+  --color-text-tertiary: #a1a1aa;
+  --color-border: rgba(255, 255, 255, 0.14);
+}
+
 @layer components {
+  /* Button */
   .c-btn {
-    @apply inline-flex items-center justify-center rounded-lg bg-[var(--color-primary,#fb2a5d)] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90;
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90;
+    background-color: var(--color-primary, #fb2a5d);
   }
 
-
+  /* Input */
   .c-input {
-    @apply w-full rounded-lg border border-[var(--color-border,rgba(255,255,255,0.14))] bg-[var(--color-background-primary,rgba(0,0,0,0.2))] px-3 py-2 text-[var(--color-text-primary,#fff)] transition focus:border-[var(--color-primary,#3b82f6)] focus:outline-none;
+    @apply w-full rounded-lg px-3 py-2 transition focus:outline-none;
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+    background-color: var(--color-background-primary, rgba(0, 0, 0, 0.2));
+    color: var(--color-text-primary, #fff);
+  }
+  .c-input:focus {
+    border-color: var(--color-primary, #3b82f6);
   }
 
+  /* Select */
   .c-select {
-    @apply w-full rounded-lg border border-[var(--color-border,rgba(255,255,255,0.14))] bg-[var(--color-background-primary,rgba(0,0,0,0.2))] px-3 py-2 text-[var(--color-text-primary,#fff)] transition focus:border-[var(--color-primary,#3b82f6)] focus:outline-none;
+    @apply w-full rounded-lg px-3 py-2 transition focus:outline-none;
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+    background-color: var(--color-background-primary, rgba(0, 0, 0, 0.2));
+    color: var(--color-text-primary, #fff);
+  }
+  .c-select:focus {
+    border-color: var(--color-primary, #3b82f6);
   }
 
+  /* Textarea */
   .c-textarea {
-    @apply w-full rounded-lg border border-[var(--color-border,rgba(255,255,255,0.14))] bg-[var(--color-background-primary,rgba(0,0,0,0.2))] px-3 py-2 text-[var(--color-text-primary,#fff)] transition focus:border-[var(--color-primary,#3b82f6)] focus:outline-none font-mono leading-snug;
+    @apply w-full rounded-lg px-3 py-2 font-mono leading-snug transition focus:outline-none;
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+    background-color: var(--color-background-primary, rgba(0, 0, 0, 0.2));
+    color: var(--color-text-primary, #fff);
+  }
+  .c-textarea:focus {
+    border-color: var(--color-primary, #3b82f6);
   }
 
+  /* Checkbox */
   .c-checkbox {
-    @apply h-4 w-4 accent-[var(--color-primary,#fb2a5d)];
+    @apply h-4 w-4;
+    accent-color: var(--color-primary, #fb2a5d);
   }
 
+  /* Checkbox Label */
   .checkbox-label {
-    @apply flex items-center gap-2.5 text-[var(--color-text-primary,#fff)];
+    @apply flex items-center gap-2.5;
+    color: var(--color-text-primary, #fff);
   }
 }

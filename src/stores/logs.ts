@@ -1,33 +1,58 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
-
-type LogLevel = "debug" | "info" | "error";
-
-type LogEntry = {
-  id: number;
-  level: LogLevel;
-  message: string;
-  at: number;
-  detail?: unknown;
-};
+import { ref, computed } from "vue";
+import type { LogLevel, LogEntry } from "../types/logger";
 
 export const useLogStore = defineStore("log-store", () => {
   const logs = ref<LogEntry[]>([]);
+  const maxLogs = 100;
   let counter = 1;
-
-  function log(level: LogLevel, message: string, detail?: unknown) {
+  
+  // フィルタリング用のcomputed
+  const debugLogs = computed(() => logs.value.filter((l) => l.level === "debug"));
+  const infoLogs = computed(() => logs.value.filter((l) => l.level === "info"));
+  const warnLogs = computed(() => logs.value.filter((l) => l.level === "warn"));
+  const errorLogs = computed(() => logs.value.filter((l) => l.level === "error"));
+  
+  function addLog(
+    level: LogLevel,
+    message: string,
+    context?: string,
+    detail?: unknown
+  ) {
     logs.value.unshift({
       id: counter++,
       level,
       message,
       at: Date.now(),
+      context,
       detail,
     });
-    // Keep only the latest 100 entries to avoid unbounded growth.
-    if (logs.value.length > 100) {
-      logs.value.splice(100);
+    if (logs.value.length > maxLogs) {
+      logs.value.splice(maxLogs);
     }
   }
 
-  return { logs, log };
+  function log(level: LogLevel, message: string, detail?: unknown) {
+    addLog(level, message, undefined, detail);
+  }
+
+  function clear() {
+    logs.value = [];
+  }
+
+  function exportLogs(): string {
+    return JSON.stringify(logs.value, null, 2);
+  }
+
+  return {
+    logs,
+    debugLogs,
+    infoLogs,
+    warnLogs,
+    errorLogs,
+    log,
+    addLog,
+    clear,
+    exportLogs,
+  };
 });

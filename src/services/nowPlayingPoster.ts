@@ -1,42 +1,21 @@
-import { Ref, reactive } from "vue";
+import type { Ref } from "vue";
+import { reactive } from "vue";
+import type { NowPlayingConfig, NowPlayingInfo, LogLevel } from "../types";
 import { useLogStore } from "../stores/logs";
+import { buildTrackId, isPlaying } from "../utils/music";
+import {
+  extractNumericId,
+  fetchSongUrlFromMusicKit,
+  urlResolver,
+} from "../utils/urlResolver";
+import {
+  renderTemplate,
+  getPlaceholderKeys,
+  getPlaceholders,
+  renderTemplatePreview,
+} from "../utils/template";
 
-type Visibility = "public" | "home" | "followers" | "direct";
-type TriggerMode = "instant" | "seconds" | "percent" | "manual";
-type RepeatBehavior = "skip" | "allow";
-type LogLevel = "debug" | "info" | "error";
 type HttpStatusError = Error & { status?: number };
-
-export type NowPlayingConfig = {
-  instanceUrl: string;
-  token: string;
-  visibility: Visibility;
-  localOnly: boolean;
-  template: string;
-  cwEnabled: boolean;
-  cwTemplate: string;
-  autopost: boolean;
-  triggerMode: TriggerMode;
-  triggerSeconds: number;
-  triggerPercent: number;
-  dedupeCooldownSec: number;
-  repeatBehavior: RepeatBehavior;
-  retries: number;
-  retryBackoffSec: number;
-  rpcBaseUrl: string;
-  rpcAuthToken?: string;
-  useRPC: boolean;
-  pollIntervalMs: number;
-  logLevel: LogLevel;
-  enableManualMenu: boolean;
-};
-
-type NowPlayingInfo = Record<string, any>;
-type PlaceholderMeta = {
-  key: string;
-  group: string;
-  description: string;
-};
 
 type PosterState = {
   lastTrackId: string;
@@ -58,294 +37,14 @@ type LevelWeight = Record<LogLevel, number>;
 const levelWeight: LevelWeight = {
   debug: 10,
   info: 20,
+  warn: 25,
   error: 30,
 };
 
 const INSTANT_GUARD_MS = 500;
 
-class UrlResolver {
-  private cache = new Map<string, string>();
-
-  async resolve(mk: any, item: any): Promise<string | null> {
-    const attrs = item.attributes ?? item;
-
-    // 1. Try to extract from existing props (fastest)
-    const candidates = [item.url, attrs.url, item.href, attrs.href];
-    for (const c of candidates) {
-      if (typeof c === "string" && c) return c;
-    }
-
-    // 2. Try API lookup via catalogId
-    const playParams = item.playParams ?? attrs.playParams;
-    const catalogId = playParams?.catalogId;
-
-    if (catalogId) {
-      if (this.cache.has(catalogId)) {
-        return this.cache.get(catalogId)!;
-      }
-
-      try {
-        if (mk && mk.api && mk.api.song) {
-          const song = await mk.api.song(catalogId);
-          const url = song?.attributes?.url;
-          if (url && typeof url === "string") {
-            this.cache.set(catalogId, url);
-            return url;
-          }
-        }
-      } catch (err) {
-        // Silent fail, fallback to other methods
-        console.warn("[UrlResolver] API lookup failed", err);
-      }
-    }
-
-    return null;
-  }
-}
-
-const urlResolver = new UrlResolver();
-
-function extractUrlString(value: any) {
-  if (typeof value === "string") return value;
-  if (!value || typeof value !== "object") return null;
-  const candidates = [
-    value.appleMusic,
-    value.canonical,
-    value.url,
-    value.href,
-    value.web,
-  ];
-  for (const candidate of candidates) {
-    if (typeof candidate === "string") return candidate;
-  }
-  return null;
-}
-
-function toSongUrlFromHref(href: string) {
-  const match = href.match(/\/catalog\/([^/]+)\/songs\/([^/?#]+)/);
-  if (!match) return null;
-  const [, storefront, id] = match;
-  if (!storefront || !id) return null;
-  return `https://music.apple.com/${storefront}/song/${id}`;
-}
-
-function extractNumericId(value: string) {
-  const matches = value.match(/\d+/g);
-  return matches?.[matches.length - 1] ?? null;
-}
-
-const songUrlCache = new Map<string, string>();
-
-async function fetchSongUrlFromMusicKit(catalogId: string) {
-  const cached = songUrlCache.get(catalogId);
-  if (cached) return cached;
-  const mk = (window as any)?.MusicKit?.getInstance?.();
-  const songApi = mk?.api?.song;
-  if (typeof songApi !== "function") return null;
-  const res = await songApi(catalogId);
-  const url =
-    res?.attributes?.url ??
-    res?.data?.[0]?.attributes?.url ??
-    res?.data?.attributes?.url ??
-    null;
-  if (typeof url === "string" && url) {
-    songUrlCache.set(catalogId, url);
-    return url;
-  }
-  return null;
-}
-
-function getStorefront(item: any, attrs: any) {
-  const storefront =
-    item?.storefrontId ??
-    attrs?.storefrontId ??
-    item?.storefront?.id ??
-    attrs?.storefront?.id ??
-    item?.storefront ??
-    attrs?.storefront;
-  return typeof storefront === "string" && storefront ? storefront : "jp";
-}
-
-function constructSongUrl(item: any) {
-  const attrs = item?.attributes ?? item ?? {};
-  const urlValue = item?.url ?? attrs?.url;
-  const directUrl = extractUrlString(urlValue);
-  if (directUrl) return directUrl;
-
-  const hrefValue = extractUrlString(item?.href ?? attrs?.href);
-  if (hrefValue) {
-    const hrefUrl = toSongUrlFromHref(hrefValue);
-    if (hrefUrl) return hrefUrl;
-  }
-
-  const playParams = {
-    ...(item?.playParams ?? {}),
-    ...(attrs?.playParams ?? {}),
-  };
-  const storefront = getStorefront(item, attrs);
-  if (playParams) {
-    if (playParams.catalogId && /^\d+$/.test(playParams.catalogId)) {
-      return `https://music.apple.com/${storefront}/song/${playParams.catalogId}`;
-    }
-    const rawId =
-      typeof playParams.id === "string"
-        ? playParams.id
-        : String(playParams.id ?? "");
-    const songId = rawId.split("/").pop();
-    const numericId = songId ? extractNumericId(songId) : null;
-    if (numericId) {
-      return `https://music.apple.com/${storefront}/song/${numericId}`;
-    }
-  }
-  const songId = attrs?.id ?? item?.id;
-  if (songId && /^\d+$/.test(String(songId))) {
-    return `https://music.apple.com/${getStorefront(
-      item,
-      attrs
-    )}/song/${songId}`;
-  }
-  const isrc = attrs?.isrc ?? item?.isrc;
-  if (isrc) {
-    return `https://music.apple.com/search?isrc=${isrc}`;
-  }
-  const name = attrs?.name ?? item?.name;
-  const artistName = attrs?.artistName ?? item?.artistName;
-  if (name) {
-    const encodedQuery = encodeURIComponent(
-      artistName ? `${name} ${artistName}` : name
-    );
-    return `https://music.apple.com/search?term=${encodedQuery}`;
-  }
-  return null;
-}
-
-function shouldLog(cfg: NowPlayingConfig, level: LogLevel) {
+function shouldLog(cfg: NowPlayingConfig, level: LogLevel): boolean {
   return levelWeight[level] >= levelWeight[cfg.logLevel];
-}
-
-function toSeconds(ms?: number) {
-  if (!ms && ms !== 0) return 0;
-  return Math.round(ms / 1000);
-}
-
-function normalizeReleaseDate(value: any) {
-  if (!value) return "";
-  if (typeof value === "string") {
-    if (value.includes("T")) return value.split("T")[0] ?? "";
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-    const parsed = Date.parse(value);
-    if (!Number.isNaN(parsed)) {
-      return new Date(parsed).toISOString().split("T")[0] ?? "";
-    }
-    return value;
-  }
-  if (value instanceof Date) {
-    return value.toISOString().split("T")[0] ?? "";
-  }
-  if (typeof value === "number") {
-    return new Date(value).toISOString().split("T")[0] ?? "";
-  }
-  return String(value);
-}
-
-function buildTrackId(info?: NowPlayingInfo) {
-  return (
-    info?.playParams?.id ||
-    info?.id ||
-    [info?.name, info?.artistName, info?.albumName].filter(Boolean).join("::")
-  );
-}
-
-function isPlaying(info?: NowPlayingInfo) {
-  // Fallback heuristics; Cider RPC may expose playBackState flags.
-  if (!info) return false;
-  if (info.playerState === "playing") return true;
-  if (info.isPlaying === true) return true;
-  if (typeof info.currentPlaybackTime === "number") {
-    // If playback is progressing, treat as playing.
-    return info.remainingTime !== 0 || info.currentPlaybackTime > 0;
-  }
-  return true;
-}
-
-const PLACEHOLDERS: Record<string, (info: NowPlayingInfo) => string> = {
-  title: (i) => i?.name ?? "",
-  artist: (i) => i?.artistName ?? "",
-  album: (i) => i?.albumName ?? "",
-  url: (i) => constructSongUrl(i) ?? "",
-  artwork: (i) => i?.artwork?.url ?? "",
-  duration_ms: (i) => String(i?.durationInMillis ?? ""),
-  duration_s: (i) => String(toSeconds(i?.durationInMillis)),
-  elapsed_s: (i) => String(Math.round(i?.currentPlaybackTime ?? 0)),
-  remaining_s: (i) => String(Math.round(i?.remainingTime ?? 0)),
-  track_no: (i) => String(i?.trackNumber ?? ""),
-  disc_no: (i) => String(i?.discNumber ?? ""),
-  genres: (i) => (Array.isArray(i?.genreNames) ? i.genreNames.join(", ") : ""),
-  release_date: (i) => normalizeReleaseDate(i?.releaseDate),
-  isrc: (i) => i?.isrc ?? "",
-  audio_traits: (i) =>
-    Array.isArray(i?.audioTraits) ? i.audioTraits.join(", ") : "",
-  repeat_mode: (i) => String(i?.repeatMode ?? ""),
-  shuffle_mode: (i) => String(i?.shuffleMode ?? ""),
-  has_lyrics: (i) => String(i?.hasLyrics ?? ""),
-  has_time_synced_lyrics: (i) => String(i?.hasTimeSyncedLyrics ?? ""),
-  play_params_id: (i) => i?.playParams?.id ?? "",
-  play_params_kind: (i) => i?.playParams?.kind ?? "",
-};
-
-const PLACEHOLDER_META: PlaceholderMeta[] = [
-  { key: "title", group: "Track", description: "曲名" },
-  { key: "artist", group: "Track", description: "アーティスト名" },
-  { key: "album", group: "Album", description: "アルバム名" },
-  { key: "track_no", group: "Album", description: "トラック番号" },
-  { key: "disc_no", group: "Album", description: "ディスク番号" },
-  { key: "genres", group: "Metadata", description: "ジャンル（カンマ区切り）" },
-  { key: "release_date", group: "Metadata", description: "リリース日" },
-  { key: "isrc", group: "IDs", description: "ISRC" },
-  {
-    key: "play_params_id",
-    group: "IDs",
-    description: "playParams.id（曲IDのことが多い）",
-  },
-  {
-    key: "play_params_kind",
-    group: "IDs",
-    description: "playParams.kind（songなど）",
-  },
-  { key: "url", group: "Links", description: "Apple Music URL（ある場合）" },
-  {
-    key: "artwork",
-    group: "Links",
-    description: "アートワークURL（テキストのみ）",
-  },
-  { key: "duration_ms", group: "Playback", description: "曲長（ms）" },
-  { key: "duration_s", group: "Playback", description: "曲長（秒）" },
-  { key: "elapsed_s", group: "Playback", description: "再生経過（秒）" },
-  { key: "remaining_s", group: "Playback", description: "残り（秒）" },
-  { key: "repeat_mode", group: "Playback", description: "リピート状態" },
-  { key: "shuffle_mode", group: "Playback", description: "シャッフル状態" },
-  {
-    key: "audio_traits",
-    group: "Playback",
-    description: "音質/機能（lossless/atmosなど）",
-  },
-  {
-    key: "has_lyrics",
-    group: "Lyrics",
-    description: "歌詞があるか（true/false）",
-  },
-  {
-    key: "has_time_synced_lyrics",
-    group: "Lyrics",
-    description: "同期歌詞があるか（true/false）",
-  },
-];
-
-function renderTemplate(tpl: string, info: NowPlayingInfo) {
-  return tpl.replace(/\{([^}]+)\}/g, (_, key: string) => {
-    const val = PLACEHOLDERS[key]?.(info);
-    return val ?? "";
-  });
 }
 
 async function postToMisskey(
@@ -380,39 +79,56 @@ async function postToMisskey(
   return data;
 }
 
-async function fetchViaMusicKit(mkArg?: any): Promise<NowPlayingInfo | null> {
-  // Prefer local MusicKit state (no RPC / token needed).
-  const mk = mkArg ?? (window as any)?.MusicKit?.getInstance?.();
+async function fetchViaMusicKit(mkArg?: unknown): Promise<NowPlayingInfo | null> {
+  const mk =
+    mkArg ??
+    (
+      window as unknown as {
+        MusicKit?: { getInstance?: () => unknown };
+      }
+    )?.MusicKit?.getInstance?.();
   if (!mk) return null;
-  const player = mk.player ?? mk._player;
-  const item = mk.nowPlayingItem ?? player?.nowPlayingItem;
+  const player = (mk as { player?: unknown; _player?: unknown }).player ??
+    (mk as { _player?: unknown })._player;
+  const item =
+    (mk as { nowPlayingItem?: unknown }).nowPlayingItem ??
+    (player as { nowPlayingItem?: unknown } | undefined)?.nowPlayingItem;
   if (!item) return null;
 
   const resolvedUrl = await urlResolver.resolve(mk, item);
 
-  const attrs = item.attributes ?? item; // attributes on native MusicKit, flat on Cider's wrapped object
+  const attrs =
+    (item as { attributes?: NowPlayingInfo }).attributes ??
+    (item as NowPlayingInfo);
   const durationSeconds =
-    player?.currentPlaybackDuration ??
-    (attrs.durationInMillis != null
-      ? attrs.durationInMillis / 1000
-      : undefined) ??
-    (item.durationInMillis != null
-      ? item.durationInMillis / 1000
+    (player as { currentPlaybackDuration?: number } | undefined)
+      ?.currentPlaybackDuration ??
+    (attrs.durationInMillis != null ? attrs.durationInMillis / 1000 : undefined) ??
+    ((item as { durationInMillis?: number }).durationInMillis != null
+      ? (item as { durationInMillis?: number }).durationInMillis! / 1000
       : undefined) ??
     0;
   const currentPlaybackTime =
-    player?.currentPlaybackTime ?? mk.currentPlaybackTime ?? 0;
+    (player as { currentPlaybackTime?: number } | undefined)
+      ?.currentPlaybackTime ??
+    (mk as { currentPlaybackTime?: number }).currentPlaybackTime ??
+    0;
   const remainingTime = Math.max(durationSeconds - currentPlaybackTime, 0);
 
   return {
     ...attrs,
-    url: resolvedUrl || attrs.url || item.url,
-    playParams: item.playParams ?? attrs.playParams,
+    url: resolvedUrl || attrs.url || (item as { url?: string }).url,
+    playParams:
+      (item as { playParams?: unknown }).playParams ?? attrs.playParams,
     currentPlaybackTime,
     durationInMillis: (durationSeconds || 0) * 1000,
     remainingTime,
-    repeatMode: player?.repeatMode ?? mk?.player?.repeatMode,
-    shuffleMode: player?.shuffleMode ?? mk?.player?.shuffleMode,
+    repeatMode:
+      ((player as { repeatMode?: string | number } | undefined)?.repeatMode) ??
+      ((mk as { player?: { repeatMode?: string | number } }).player?.repeatMode),
+    shuffleMode:
+      ((player as { shuffleMode?: string | number } | undefined)?.shuffleMode) ??
+      ((mk as { player?: { shuffleMode?: string | number } }).player?.shuffleMode),
   };
 }
 
@@ -433,7 +149,7 @@ async function fetchViaRPC(cfg: NowPlayingConfig) {
     throw e;
   }
   const json = await res.json();
-  return json?.info ?? json;
+  return (json as { info?: unknown }).info ?? json;
 }
 
 async function fetchNowPlaying(cfg: NowPlayingConfig) {
@@ -498,8 +214,9 @@ class NowPlayingPoster {
       if (this.#cfgRef.value.autopost) {
         await this.maybePost(info);
       }
-    } catch (err: any) {
-      if (err?.status === 401 || err?.status === 403) {
+    } catch (err: unknown) {
+      const statusErr = err as { status?: number };
+      if (statusErr?.status === 401 || statusErr?.status === 403) {
         this.#cfgRef.value.useRPC = false;
         this.log("error", "RPC unauthorized; disabled RPC fallback", err);
         return;
@@ -508,7 +225,7 @@ class NowPlayingPoster {
     }
   }
 
-  async onMediaItemChange(mkArg?: any) {
+  async onMediaItemChange(mkArg?: unknown) {
     const info = await fetchViaMusicKit(mkArg);
     if (!info) return;
     this.recordTrack(info);
@@ -639,7 +356,9 @@ class NowPlayingPoster {
           this.log(l, m, d)
         );
         this.state.lastPostResult = "ok";
-        this.state.noteId = res?.createdNote?.id ?? res?.id;
+        this.state.noteId =
+          (res as { createdNote?: { id?: string } }).createdNote?.id ??
+          (res as { id?: string }).id;
         return;
       } catch (err) {
         attempt += 1;
@@ -687,14 +406,4 @@ export function useNowPlayingPoster() {
   return singleton;
 }
 
-export function getPlaceholderKeys() {
-  return PLACEHOLDER_META.map((p) => p.key);
-}
-
-export function renderTemplatePreview(tpl: string, info: NowPlayingInfo) {
-  return renderTemplate(tpl, info);
-}
-
-export function getPlaceholders() {
-  return PLACEHOLDER_META;
-}
+export { getPlaceholderKeys, renderTemplatePreview, getPlaceholders };

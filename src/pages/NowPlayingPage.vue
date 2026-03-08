@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useConfig } from "../config";
 import { useNowPlayingPoster } from "../services/nowPlayingPoster";
 import { useLogStore } from "../stores/logs";
 import TemplateEditor from "../components/TemplateEditor.vue";
+import SettingSection from "../components/settings/SettingSection.vue";
+import FormField from "../components/settings/FormField.vue";
+import SelectField from "../components/settings/SelectField.vue";
+import CheckboxField from "../components/settings/CheckboxField.vue";
+import NumberField from "../components/settings/NumberField.vue";
 
 const cfg = useConfig();
 const poster = useNowPlayingPoster();
@@ -15,6 +20,45 @@ const sampleInfo = computed(() => lastTrack.value);
 function manualPost() {
   poster?.manualPost(true);
 }
+
+// Accordion state
+const expandedSections = ref<Record<string, boolean>>({
+  misskey: true,
+  template: true,
+  autopost: true,
+  trigger: false,
+  advanced: false,
+});
+
+function toggleSection(key: string) {
+  expandedSections.value[key] = !expandedSections.value[key];
+}
+
+// Select options
+const visibilityOptions = [
+  { value: "public", label: "public" },
+  { value: "home", label: "home" },
+  { value: "followers", label: "followers" },
+  { value: "direct", label: "direct" },
+];
+
+const repeatBehaviorOptions = [
+  { value: "skip", label: "skip" },
+  { value: "allow", label: "allow" },
+];
+
+const triggerModeOptions = [
+  { value: "instant", label: "instant" },
+  { value: "seconds", label: "seconds" },
+  { value: "percent", label: "percent" },
+  { value: "manual", label: "manual" },
+];
+
+const logLevelOptions = [
+  { value: "debug", label: "debug" },
+  { value: "info", label: "info" },
+  { value: "error", label: "error" },
+];
 </script>
 
 <template>
@@ -22,15 +66,11 @@ function manualPost() {
     <h1 class="apple-heading">Misskey NowPlaying</h1>
     <p class="caption">自動投稿と手動投稿の管理ページ（開発用ログ込み）</p>
 
+    <!-- Current Track Card -->
     <section class="np-card">
       <header class="np-card__header">
         <h3 class="np-card__title">現在のトラック</h3>
-        <span
-          class="np-pill"
-          v-if="poster?.state?.isPosting"
-        >
-          Posting…
-        </span>
+        <span class="np-pill" v-if="poster?.state?.isPosting">Posting…</span>
       </header>
       <div v-if="lastTrack">
         <div class="np-track-row">
@@ -56,15 +96,11 @@ function manualPost() {
       </div>
       <div v-else>まだ再生情報を取得していません。</div>
       <div class="np-card__actions">
-        <button
-          class="c-btn"
-          @click="manualPost"
-        >
-          手動で今すぐ投稿
-        </button>
+        <button class="c-btn" @click="manualPost">手動で今すぐ投稿</button>
       </div>
     </section>
 
+    <!-- Template Card -->
     <section class="np-card">
       <header class="np-card__header">
         <h3 class="np-card__title">テンプレート</h3>
@@ -82,222 +118,208 @@ function manualPost() {
       />
     </section>
 
+    <!-- Settings Card with Accordion -->
     <section class="np-card">
       <header class="np-card__header">
         <h3 class="np-card__title">設定</h3>
       </header>
 
-      <div class="np-settings">
-        <div class="np-settings-section">
-          <h4 class="np-settings-title">Misskey</h4>
-          <div class="np-settings-grid">
-            <label class="np-field">
-              Misskey Instance URL
-              <input
-                class="c-input"
+      <div class="np-accordion">
+        <!-- Misskey Connection -->
+        <div class="np-accordion-item">
+          <button
+            class="np-accordion-header"
+            @click="toggleSection('misskey')"
+            :aria-expanded="expandedSections.misskey"
+          >
+            <span class="np-accordion-title">Misskey 接続設定</span>
+            <span
+              class="np-accordion-icon"
+              :class="{ 'np-accordion-icon--open': expandedSections.misskey }"
+            >
+              ▼
+            </span>
+          </button>
+          <div v-show="expandedSections.misskey" class="np-accordion-body">
+            <SettingSection title="インスタンス設定">
+              <FormField
                 v-model="cfg.instanceUrl"
+                label="Misskey Instance URL"
                 placeholder="https://misskey.io"
               />
-            </label>
-            <label class="np-field">
-              Token (write:notes)
-              <input
-                class="c-input"
+              <FormField
                 v-model="cfg.token"
+                label="Token (write:notes)"
                 type="password"
               />
-            </label>
-            <label class="np-field">
-              Visibility
-              <select
-                class="c-select"
+              <SelectField
                 v-model="cfg.visibility"
-              >
-                <option value="public">public</option>
-                <option value="home">home</option>
-                <option value="followers">followers</option>
-                <option value="direct">direct</option>
-              </select>
-            </label>
-            <label class="checkbox-label">
-              <input
-                class="c-checkbox"
-                type="checkbox"
-                v-model="cfg.localOnly"
+                label="Visibility"
+                :options="visibilityOptions"
               />
-              localOnly
-            </label>
-            <label class="checkbox-label">
-              <input
-                class="c-checkbox"
-                type="checkbox"
+              <CheckboxField v-model="cfg.localOnly" label="localOnly" />
+              <CheckboxField
                 v-model="cfg.cwEnabled"
+                label="Use CW (content warning)"
               />
-              Use CW (content warning)
-            </label>
+            </SettingSection>
           </div>
         </div>
 
-        <div class="np-settings-section">
-          <h4 class="np-settings-title">投稿</h4>
-          <div class="np-settings-grid">
-            <label class="checkbox-label">
-              <input
-                class="c-checkbox"
-                type="checkbox"
+        <!-- Autopost Settings -->
+        <div class="np-accordion-item">
+          <button
+            class="np-accordion-header"
+            @click="toggleSection('autopost')"
+            :aria-expanded="expandedSections.autopost"
+          >
+            <span class="np-accordion-title">自動投稿設定</span>
+            <span
+              class="np-accordion-icon"
+              :class="{ 'np-accordion-icon--open': expandedSections.autopost }"
+            >
+              ▼
+            </span>
+          </button>
+          <div v-show="expandedSections.autopost" class="np-accordion-body">
+            <SettingSection title="基本設定">
+              <CheckboxField
                 v-model="cfg.autopost"
+                label="Autopost enabled"
               />
-              Autopost enabled
-            </label>
-            <label class="checkbox-label">
-              <input
-                class="c-checkbox"
-                type="checkbox"
+              <CheckboxField
                 v-model="cfg.enableManualMenu"
+                label="Add manual post menu entry"
               />
-              Add manual post menu entry
-            </label>
-            <label class="np-field">
-              Dedupe cooldown (sec)
-              <input
-                class="c-input"
-                type="number"
-                v-model.number="cfg.dedupeCooldownSec"
+              <NumberField
+                v-model="cfg.dedupeCooldownSec"
+                label="Dedupe cooldown (sec)"
+                :min="0"
               />
-            </label>
-            <label class="np-field">
-              Repeat behavior
-              <select
-                class="c-select"
+              <SelectField
                 v-model="cfg.repeatBehavior"
-              >
-                <option value="skip">skip</option>
-                <option value="allow">allow</option>
-              </select>
-            </label>
-            <label class="np-field">
-              Retries
-              <input
-                class="c-input"
-                type="number"
-                v-model.number="cfg.retries"
+                label="Repeat behavior"
+                :options="repeatBehaviorOptions"
               />
-            </label>
-            <label class="np-field">
-              Retry backoff (sec)
-              <input
-                class="c-input"
-                type="number"
-                v-model.number="cfg.retryBackoffSec"
+            </SettingSection>
+
+            <SettingSection
+              title="リトライ設定"
+              description="投稿失敗時の再試行設定"
+            >
+              <NumberField
+                v-model="cfg.retries"
+                label="Retries"
+                :min="0"
               />
-            </label>
+              <NumberField
+                v-model="cfg.retryBackoffSec"
+                label="Retry backoff (sec)"
+                :min="0"
+              />
+            </SettingSection>
           </div>
         </div>
 
-        <div class="np-settings-section">
-          <h4 class="np-settings-title">トリガー</h4>
-          <div class="np-settings-grid">
-            <label class="np-field">
-              Trigger mode
-              <select
-                class="c-select"
+        <!-- Trigger Settings -->
+        <div class="np-accordion-item">
+          <button
+            class="np-accordion-header"
+            @click="toggleSection('trigger')"
+            :aria-expanded="expandedSections.trigger"
+          >
+            <span class="np-accordion-title">トリガー設定</span>
+            <span
+              class="np-accordion-icon"
+              :class="{ 'np-accordion-icon--open': expandedSections.trigger }"
+            >
+              ▼
+            </span>
+          </button>
+          <div v-show="expandedSections.trigger" class="np-accordion-body">
+            <SettingSection
+              title="トリガーモード"
+              description="自動投稿のタイミングを制御"
+            >
+              <SelectField
                 v-model="cfg.triggerMode"
-              >
-                <option value="instant">instant</option>
-                <option value="seconds">seconds</option>
-                <option value="percent">percent</option>
-                <option value="manual">manual</option>
-              </select>
-            </label>
-            <label
-              class="np-field"
-              v-if="cfg.triggerMode === 'seconds'"
-            >
-              Threshold seconds
-              <input
-                class="c-input"
-                type="number"
-                min="0"
-                step="1"
-                v-model.number="cfg.triggerSeconds"
+                label="Trigger mode"
+                :options="triggerModeOptions"
               />
-            </label>
-            <label
-              class="np-field"
-              v-if="cfg.triggerMode === 'percent'"
-            >
-              Threshold percent
-              <input
-                class="c-input"
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                v-model.number="cfg.triggerPercent"
+              <NumberField
+                v-if="cfg.triggerMode === 'seconds'"
+                v-model="cfg.triggerSeconds"
+                label="Threshold seconds"
+                :min="0"
+                :step="1"
               />
-            </label>
-            <label class="np-field">
-              Poll interval (ms)
-              <input
-                class="c-input"
-                type="number"
-                v-model.number="cfg.pollIntervalMs"
+              <NumberField
+                v-if="cfg.triggerMode === 'percent'"
+                v-model="cfg.triggerPercent"
+                label="Threshold percent"
+                :min="0"
+                :max="100"
+                :step="1"
               />
-            </label>
+              <NumberField
+                v-model="cfg.pollIntervalMs"
+                label="Poll interval (ms)"
+                :min="1000"
+                :step="100"
+              />
+            </SettingSection>
           </div>
         </div>
 
-        <div class="np-settings-section">
-          <h4 class="np-settings-title">RPC</h4>
-          <div class="np-settings-grid">
-            <label class="checkbox-label">
-              <input
-                class="c-checkbox"
-                type="checkbox"
+        <!-- Advanced Settings -->
+        <div class="np-accordion-item">
+          <button
+            class="np-accordion-header"
+            @click="toggleSection('advanced')"
+            :aria-expanded="expandedSections.advanced"
+          >
+            <span class="np-accordion-title">詳細設定</span>
+            <span
+              class="np-accordion-icon"
+              :class="{ 'np-accordion-icon--open': expandedSections.advanced }"
+            >
+              ▼
+            </span>
+          </button>
+          <div v-show="expandedSections.advanced" class="np-accordion-body">
+            <SettingSection
+              title="RPC設定"
+              description="Cider RPCフォールバック設定"
+            >
+              <CheckboxField
                 v-model="cfg.useRPC"
+                label="Use RPC fallback (requires Cider RPC enabled)"
               />
-              Use RPC fallback (requires Cider RPC enabled)
-            </label>
-            <label class="np-field">
-              RPC Base URL
-              <input
-                class="c-input"
+              <FormField
                 v-model="cfg.rpcBaseUrl"
+                label="RPC Base URL"
                 placeholder="http://localhost:10767"
               />
-            </label>
-            <label
-              class="np-field"
-              v-if="cfg.useRPC"
-            >
-              RPC Auth Token (任意)
-              <input
-                class="c-input"
+              <FormField
+                v-if="cfg.useRPC"
                 v-model="cfg.rpcAuthToken"
+                label="RPC Auth Token (任意)"
               />
-            </label>
-          </div>
-        </div>
+            </SettingSection>
 
-        <div class="np-settings-section">
-          <h4 class="np-settings-title">ログ</h4>
-          <div class="np-settings-grid">
-            <label class="np-field">
-              Log level
-              <select
-                class="c-select"
+            <SettingSection title="ログ設定">
+              <SelectField
                 v-model="cfg.logLevel"
-              >
-                <option value="debug">debug</option>
-                <option value="info">info</option>
-                <option value="error">error</option>
-              </select>
-            </label>
+                label="Log level"
+                :options="logLevelOptions"
+              />
+            </SettingSection>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- Logs Card -->
     <section class="np-card">
       <header class="np-card__header">
         <h3 class="np-card__title">ログ (最新50件)</h3>
@@ -311,9 +333,7 @@ function manualPost() {
           <span class="np-log-time">{{
             new Date(entry.at).toLocaleTimeString()
           }}</span>
-          <span
-            :class="['np-log-level', `np-log-level--${entry.level}`]"
-          >
+          <span :class="['np-log-level', `np-log-level--${entry.level}`]">
             {{ entry.level }}
           </span>
           <span class="np-log-message">{{ entry.message }}</span>
@@ -365,29 +385,37 @@ function manualPost() {
   @apply mt-4;
 }
 
-.np-settings {
-  @apply space-y-5;
+/* Accordion styles */
+.np-accordion {
+  @apply space-y-2;
 }
 
-.np-settings-section {
-  @apply border-t border-dashed border-[var(--color-border,rgba(255,255,255,0.08))] pt-4;
+.np-accordion-item {
+  @apply rounded-lg border border-[var(--color-border,rgba(255,255,255,0.08))] bg-[var(--color-background-primary,rgba(0,0,0,0.2))] overflow-hidden;
 }
 
-.np-settings-section:first-child {
-  @apply border-0 pt-0;
+.np-accordion-header {
+  @apply w-full flex items-center justify-between px-4 py-3 text-left transition hover:bg-white/5;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-primary, inherit);
 }
 
-.np-settings-title {
-  @apply mb-3 text-sm font-bold tracking-wide text-[var(--color-text-primary,inherit)];
+.np-accordion-title {
+  @apply font-semibold text-sm;
 }
 
-.np-settings-grid {
-  @apply grid items-end gap-3.5;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+.np-accordion-icon {
+  @apply text-xs text-[var(--color-text-tertiary,#a1a1aa)] transition-transform duration-200;
 }
 
-.np-field {
-  @apply grid gap-2 text-[var(--color-text-secondary,#d4d4d8)] font-semibold;
+.np-accordion-icon--open {
+  @apply rotate-180;
+}
+
+.np-accordion-body {
+  @apply px-4 pb-4;
 }
 
 .np-log-list {

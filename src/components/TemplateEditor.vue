@@ -108,8 +108,8 @@ function onPlaceholderClick(key: string, e: MouseEvent) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <label class="grid gap-2 text-[var(--color-text-secondary,#d4d4d8)] font-semibold">
+  <div class="te-root">
+    <label class="te-label">
       {{ props.label }}
       <textarea
         ref="textareaRef"
@@ -120,54 +120,43 @@ function onPlaceholderClick(key: string, e: MouseEvent) {
       />
     </label>
 
-    <div
-      class="rounded-xl border border-[var(--color-border,rgba(255,255,255,0.1))] bg-[var(--color-background-secondary,rgba(255,255,255,0.06))] p-3"
-    >
-      <div class="mb-1.5 text-sm font-semibold text-[var(--color-text-secondary,#d4d4d8)]">
+    <div class="te-preview-box">
+      <div class="te-preview-label">
         {{ props.previewLabel }}
       </div>
-      <pre class="m-0 whitespace-pre-wrap break-words rounded-lg bg-black/15 p-2.5 font-mono">{{ preview }}</pre>
-      <div class="mt-1.5 text-xs text-[var(--color-text-tertiary,#a1a1aa)]">
+      <pre class="te-preview-pre">{{ preview }}</pre>
+      <div class="te-preview-hint">
         改行はそのまま投稿されます。
       </div>
     </div>
 
-    <details
-      class="rounded-xl border border-[var(--color-border,rgba(255,255,255,0.1))] bg-[var(--color-background-secondary,rgba(255,255,255,0.06))] p-3"
-      open
-    >
-      <summary class="cursor-pointer font-bold text-[var(--color-text-primary,#fff)]">
-        Placeholders
-      </summary>
-      <div class="mt-2 grid gap-2">
+    <details class="te-details" open>
+      <summary class="te-summary">Placeholders</summary>
+      <div class="te-search-area">
         <input class="c-input" v-model="query" placeholder="Search…" />
-        <div class="text-xs text-[var(--color-text-tertiary,#a1a1aa)]">
+        <div class="te-search-hint">
           クリックで挿入 / Shift+クリックでコピー
         </div>
       </div>
 
-      <div class="mt-2 text-xs text-[var(--color-text-secondary,#d4d4d8)]" v-if="copiedKey">
+      <div class="te-copied-notice" v-if="copiedKey">
         Copied: <code>{{ copiedKey }}</code>
       </div>
 
-      <div class="mt-3 max-h-150 overflow-y-auto pr-1">
-        <div v-for="[group, items] in groupedPlaceholders" :key="group" class="mt-3">
-          <div class="mb-2 text-sm font-bold text-[var(--color-text-secondary,#d4d4d8)]">
-            {{ group }}
-          </div>
-          <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
+      <div class="te-placeholders-container">
+        <div v-for="[group, items] in groupedPlaceholders" :key="group" class="te-group">
+          <div class="te-group-title">{{ group }}</div>
+          <div class="te-placeholder-grid">
             <button
               v-for="p in items"
               :key="p.key"
               type="button"
-              class="grid gap-1 rounded-lg border border-white/10 bg-white/5 p-2 text-left transition hover:border-white/20 hover:bg-white/10"
+              class="te-placeholder-btn"
               @click="(e) => onPlaceholderClick(p.key, e as MouseEvent)"
               :title="p.description"
             >
-              <code class="font-bold">{{ '{' + p.key + '}' }}</code>
-              <span class="text-xs text-[var(--color-text-tertiary,#a1a1aa)]">
-                {{ p.description }}
-              </span>
+              <code class="te-placeholder-code">{{ '{' + p.key + '}' }}</code>
+              <span class="te-placeholder-desc">{{ p.description }}</span>
             </button>
           </div>
         </div>
@@ -175,3 +164,131 @@ function onPlaceholderClick(key: string, e: MouseEvent) {
     </details>
   </div>
 </template>
+
+<style scoped>
+.te-root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.te-label {
+  display: grid;
+  gap: 0.5rem;
+  color: var(--color-text-secondary, #d4d4d8);
+  font-weight: 600;
+}
+
+.te-preview-box {
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  background-color: var(--color-background-secondary, rgba(255, 255, 255, 0.06));
+  padding: 0.75rem;
+}
+
+.te-preview-label {
+  margin-bottom: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #d4d4d8);
+}
+
+.te-preview-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.15);
+  padding: 0.625rem;
+  font-family: ui-monospace, monospace;
+}
+
+.te-preview-hint {
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #a1a1aa);
+}
+
+.te-details {
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  background-color: var(--color-background-secondary, rgba(255, 255, 255, 0.06));
+  padding: 0.75rem;
+}
+
+.te-summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--color-text-primary, #fff);
+}
+
+.te-search-area {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.te-search-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #a1a1aa);
+}
+
+.te-copied-notice {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #d4d4d8);
+}
+
+.te-placeholders-container {
+  margin-top: 0.75rem;
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.te-group {
+  margin-top: 0.75rem;
+}
+
+.te-group:first-child {
+  margin-top: 0;
+}
+
+.te-group-title {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text-secondary, #d4d4d8);
+}
+
+.te-placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.5rem;
+}
+
+.te-placeholder-btn {
+  display: grid;
+  gap: 0.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 0.5rem;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.te-placeholder-btn:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.te-placeholder-code {
+  font-weight: 700;
+}
+
+.te-placeholder-desc {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #a1a1aa);
+}
+</style>

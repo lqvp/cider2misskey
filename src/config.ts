@@ -2,7 +2,7 @@ import { Ref, ref, watch } from "vue";
 import { useCider } from "@ciderapp/pluginkit";
 import { clone, merge } from "lodash";
 import PluginConfig from "./plugin.config";
-import type { NowPlayingConfig } from "./services/nowPlayingPoster";
+import type { NowPlayingConfig } from "./types";
 
 function setupConfig<T extends Record<string, any>>(defaults: T): Ref<T> {
   const cfg = { ...defaults };
